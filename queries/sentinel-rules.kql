@@ -1,0 +1,33 @@
+// Sentinel detection rules — WRITTEN, not live-tested.
+// No live Sentinel workspace was available for this run (no Azure
+// subscription / card — see README). These rules are written in the
+// KQL Sentinel uses, with the same summarize / where / sort patterns
+// proven working on RawSysLogs in kql-queries.kql.
+// Do not present them as tested detections.
+
+// Rule 1: Excessive failed logons (brute-force indicator)
+// MITRE ATT&CK T1110.001 — Password Guessing
+// Fires when one account has more than 10 failed logons in 5 minutes.
+SecurityEvent
+| where EventID == 4625
+| summarize FailedCount = count() by Account, bin(TimeGenerated, 5m)
+| where FailedCount > 10
+| sort by FailedCount desc
+
+// Rule 2: Successful logon after failures (possible brute-force success)
+// Same account, failed logons followed by a successful logon (4624).
+SecurityEvent
+| where EventID in (4624, 4625)
+| summarize Failed = countif(EventID == 4625), Success = countif(EventID == 4624) by Account, bin(TimeGenerated, 30m)
+| where Failed >= 5 and Success > 0
+| sort by Failed desc
+
+// Rule 3: Failed sign-ins by user (Entra ID)
+// SigninLogs rows were removed from the Log Analytics demo, so this
+// rule returned no results there. Logic is standard Sentinel:
+// any non-zero ResultType is a failed sign-in.
+SigninLogs
+| where ResultType != 0
+| summarize FailedCount = count() by UserPrincipalName, ResultType
+| sort by FailedCount desc
+| take 10

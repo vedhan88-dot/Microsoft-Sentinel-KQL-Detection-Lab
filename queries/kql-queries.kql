@@ -1,0 +1,35 @@
+// Microsoft Sentinel KQL Detection Lab
+// Run in Azure Data Explorer, database help/SampleLogs, table RawSysLogs
+// All 3 queries returned real results on 23 Nov 2026 (UTC).
+
+// 1. Count by metric name
+RawSysLogs
+| summarize Count = count() by name
+| sort by Count desc
+| take 10
+// Result: sqlserver_performance 753,187,980; sqlserver_waitstats
+// 59,071,116; sqlserver_memory_clerks 31,235,165; sqlserver_schedulers
+// 15,024,121; sqlserver_azuredb_waitstats 13,959,224; and 5 more.
+
+// 2. Count by host
+RawSysLogs
+| summarize Count = count() by tostring(tags.host)
+| sort by Count desc
+| take 10
+// Result: adx-vm 885,047,768 — single host, all records.
+
+// 3. Total count
+RawSysLogs
+| count
+// Result: 885,047,768
+
+// --- Dead ends, kept for honesty ---
+// TransformedSysLogs | count  -> 1 row total, table effectively empty.
+//   The first queries tried on TransformedSysLogs (severity == "err",
+//   * has 'failed', summarize by severity) all returned no rows.
+// Log Analytics demo (aka.ms/LADemo):
+//   SecurityEvent | take 5  -> no results
+//   Syslog | take 5  -> no results
+//   AzureActivity | take 5  -> no results
+//   SigninLogs queries  -> no results (Microsoft removed most
+//   SigninLogs rows from the demo)
